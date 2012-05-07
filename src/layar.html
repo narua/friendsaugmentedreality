@@ -1,5 +1,37 @@
-{% for entry in entryList %}
-	    {{entry.tag}}
-		{{entry.value}}
-		{{entry.date}}  
-{% endfor %}
+{
+  "hotspots": [
+      {% for entry in entryList %}
+	  { 
+	    "distance": 1,	
+		"title": "{{entry.tag}}", 
+		"lat": "{{entry.latitude}}",	  
+		"lon": "{{entry.longitude}}", 
+		"line2": "Atualizado em: {{entry.date}}",
+		"line3": "Friends Augmented Reality - FAR",
+		"line4": "Prototipo www.NARUA.tk",
+		"imageURL": "http://1.bp.blogspot.com/-ufe14VPeM7I/T6c40P4JrDI/AAAAAAAAASU/3DlpVIetmZk/s1600/far.png",
+		"actions": [ { "uri": "http://google.com/search?q={{entry.tag}}", "label": "Pesquisar" }],	  
+		"type": 0,
+		"id": "{{entry.tag}}"
+	  },
+      {% endfor %}
+	  {        
+        "distance": 1,	
+		"title": "FAR NaRUA", 
+		"lat": "-2300000",	  
+		"lon": "-4600000", 
+		"line2": "Atualizado em: 06/05/2012",
+		"line3": "Friends Augmented Reality - FAR",
+		"line4": "Prototipo www.NARUA.tk",
+		"imageURL": "http://1.bp.blogspot.com/-ufe14VPeM7I/T6c40P4JrDI/AAAAAAAAASU/3DlpVIetmZk/s1600/far.png",
+		"actions": [ { "uri": "http://google.com/search?q={{entry.tag}}", "label": "Pesquisar" }],	  
+		"type": 0,
+		"id": "NaRUA"
+	  }
+  ],
+   "layer": "far",
+   "errorString": "ok", 
+   "morePages": false,
+   "errorCode": 0,
+   "nextPageKey": null
+}

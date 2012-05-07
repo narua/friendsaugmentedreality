@@ -29,6 +29,7 @@ for Android</a> app. App Inventor apps can access this service using the TinyWeb
           enctype=application/x-www-form-urlencoded>
        <p>Tag:<input type="text" name="tag" /></p>
        <input type="hidden" name="fmt" value="html">
+	   <input type="hidden" name="fmt2" value="html">
        <input type="submit" value="Get value">
     </form>
    
@@ -40,22 +41,25 @@ for Android</a> app. App Inventor apps can access this service using the TinyWeb
 <form action="/storeavalue" method="post"
 		  enctype=application/x-www-form-urlencoded>
 	   <p>Tag: <input type="text" name="tag" size="30"/></p>
-	   <p>Value: <input type="text" name="value" size="30"/></p>
+	   <p>GPS(lat;lon): <input type="text" name="value" size="30"/></p>
 	   <input type="hidden" name="fmt" value="html">
+	   <input type="hidden" name="fmt2" value="html">
 	   <input type="submit" value="Store a value">
 	</form>
  <br/>
 
 	<table border=1>
 	  <tr>
-		 <th>Key</th>
-		 <th>Value</th>
+		 <th>Tag</th>
+		 <th>Latitude</th>
+		 <th>Longitude</th>
 		 <th>Created (GMT)</th>
 	  </tr>
 	  {% for entry in entryList %}
 	  <tr>
 	         <td>{{entry.tag}}</td>
-		<td>{{entry.value}}</td>
+		<td>{{entry.latitude}}</td>
+		<td>{{entry.longitude}}</td>
 		<td><font size="-1">{{entry.date}}</font></td>
           
 	  	<td><form action="/deleteentry" method="post"
@@ -63,6 +67,7 @@ for Android</a> app. App Inventor apps can access this service using the TinyWeb
 		<input type="hidden" name="entry_key_string" value="{{entry.key}}">
 		<input type="hidden" name="tag" value="{{entry.tag}}">
 			<input type="hidden" name="fmt" value="html">
+			<input type="hidden" name="fmt2" value="html">
 		<input type="submit" style="background-color: red" value="Delete"></form></td>
           </tr>
 	  {% endfor %}

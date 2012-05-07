@@ -26,49 +26,59 @@ max_entries = 1000
 
 class StoredData(db.Model):
   tag = db.StringProperty()
-  value = db.TextProperty()
+  latitude = db.TextProperty()
+  longitude = db.TextProperty()
   date = db.DateTimeProperty(required=True, auto_now=True)
 
 
 class StoreAValue(webapp.RequestHandler):
 
   def store_a_value(self, tag, value):
-  	store(tag, value)
-	# call trimdb if you want to limit the size of db
-  	# trimdb()
+    lat = value.split(";")[0]
+    lon = value.split(";")[1]
 	
-	## Send back a confirmation message.  The TinyWebDB component ignores
-	## the message (other than to note that it was received), but other
-	## components might use this.
-	result = ["STORED", tag, value]
+    lat = lat.replace('"',"")
+    lon = lon.replace('"',"")
+
+    lat = lat + "0"
+    lon = lon + "0"
 	
-	## When I first implemented this, I used  json.JSONEncoder().encode(value)
-	## rather than json.dump.  That didn't work: the component ended up
-	## seeing extra quotation marks.  Maybe someone can explain this to me.
-	
-	if self.request.get('fmt') == "html":
-		WriteToWeb(self,tag,value)
-	else:
-		WriteToPhoneAfterStore(self,tag,value)
-	
+    store(tag, lat, lon)
+    # call trimdb if you want to limit the size of db
+      # trimdb()
+    
+    ## Send back a confirmation message.  The TinyWebDB component ignores
+    ## the message (other than to note that it was received), but other
+    ## components might use this.
+    result = ["STORED", tag, value]
+    
+    ## When I first implemented this, I used  json.JSONEncoder().encode(latitude)
+    ## rather than json.dump.  That didn't work: the component ended up
+    ## seeing extra quotation marks.  Maybe someone can explain this to me.
+    
+    if self.request.get('fmt') == "html":
+        WriteToWeb(self,tag,value.split(";")[0],value.split(";")[1])
+    else:
+        WriteToPhoneAfterStore(self,tag,value)
+    
 
   def post(self):
-	tag = self.request.get('tag')
-	value = self.request.get('value')
-	self.store_a_value(tag, value)
+    tag = self.request.get('tag')
+    value = self.request.get('value')
+    self.store_a_value(tag, value)
 
 class DeleteEntry(webapp.RequestHandler):
 
   def post(self):
-	logging.debug('/deleteentry?%s\n|%s|' %
-				  (self.request.query_string, self.request.body))
-	entry_key_string = self.request.get('entry_key_string')
-	key = db.Key(entry_key_string)
-	tag = self.request.get('tag')
-	if tag.startswith("http"):
-	  DeleteUrl(tag)
-	db.run_in_transaction(dbSafeDelete,key)
-	self.redirect('/')
+    logging.debug('/deleteentry?%s\n|%s|' %
+                  (self.request.query_string, self.request.body))
+    entry_key_string = self.request.get('entry_key_string')
+    key = db.Key(entry_key_string)
+    tag = self.request.get('tag')
+    if tag.startswith("http"):
+      DeleteUrl(tag)
+    db.run_in_transaction(dbSafeDelete,key)
+    self.redirect('/')
 
 
 class GetValueHandler(webapp.RequestHandler):
@@ -77,13 +87,16 @@ class GetValueHandler(webapp.RequestHandler):
 
     entry = db.GqlQuery("SELECT * FROM StoredData where tag = :1", tag).get()
     if entry:
-       value = entry.value
-    else: value = ""
+       latitude = entry.latitude
+       longitude = entry.longitude
+    else: 
+       latitude = ""
+       longitude = ""
   
     if self.request.get('fmt') == "html":
-    	WriteToWeb(self,tag,value )
+        WriteToWeb(self,tag,latitude,longitude )
     else:
-	WriteToPhone(self,tag,value)
+        WriteToPhone(self,tag,latitude,longitude)
 
   def post(self):
     tag = self.request.get('tag')
@@ -105,7 +118,7 @@ class MainPage(webapp.RequestHandler):
     # render the page using the template engine
     path = os.path.join(os.path.dirname(__file__),'index.html')
     self.response.out.write(template.render(path,template_values))
-	
+    
 class Layar(webapp.RequestHandler):
   def get(self):
     entries = db.GqlQuery("SELECT * FROM StoredData ORDER BY date desc")
@@ -113,20 +126,21 @@ class Layar(webapp.RequestHandler):
     # render the page using the template engine
     path = os.path.join(os.path.dirname(__file__),'layar.html')
     self.response.out.write(template.render(path,template_values))
-	
+    
 class Layar2(webapp.RequestHandler):
   def get(self):
     return self.response.out.write(json.dumps({'c': 0, "b": 0, "a": 0}, sort_keys=True))
-	
+    
 #### Utilty procedures for generating the output
 
-def WriteToPhone(handler,tag,value): 
-    handler.response.headers['Content-Type'] = 'application/jsonrequest'
-    json.dump(["VALUE", tag, value], handler.response.out)
-	
-def WriteToWeb(handler, tag,value):
+def WriteToPhone(handler,tag,latitude,longitude): 
+   handler.response.headers['Content-Type'] = 'application/jsonrequest'
+   json.dump(["VALUE", tag, latitude], handler.response.out)
+    
+    
+def WriteToWeb(handler, tag,latitude,longitude):
     entries = db.GqlQuery("SELECT * FROM StoredData ORDER BY date desc")
-    template_values={"result":  value,"entryList":entries}  
+    template_values={"result":  latitude,"entryList":entries}  
     path = os.path.join(os.path.dirname(__file__),'index.html')
     handler.response.out.write(template.render(path,template_values))
 
@@ -139,26 +153,27 @@ def WriteToPhoneAfterStore(handler,tag, value):
 
 ### A utility that guards against attempts to delete a non-existent object
 def dbSafeDelete(key):
-  if db.get(key) :	db.delete(key)
+  if db.get(key) :    db.delete(key)
   
-def store(tag, value, bCheckIfTagExists=True):
-	if bCheckIfTagExists:
-		# There's a potential readers/writers error here :(
-		entry = db.GqlQuery("SELECT * FROM StoredData where tag = :1", tag).get()
-		if entry:
-		  entry.value = value
-		else: entry = StoredData(tag = tag, value = value)
-	else:
-		entry = StoredData(tag = tag, value = value)
-	entry.put()		
-	
+def store(tag, lat, lon, bCheckIfTagExists=True):
+    if bCheckIfTagExists:
+        # There's a potential readers/writers error here :(
+        entry = db.GqlQuery("SELECT * FROM StoredData where tag = :1", tag).get()
+        if entry:
+          entry.latitude = lat
+          entry.longitude = lon
+        else: entry = StoredData(tag = tag, latitude = lat, longitude = lon)
+    else:
+        entry = StoredData(tag = tag, latitude = lat, longitude = lon)
+    entry.put()        
+    
 def trimdb():
-	## If there are more than the max number of entries, flush the
-	## earliest entries.
-	entries = db.GqlQuery("SELECT * FROM StoredData ORDER BY date")
-	if (entries.count() > max_entries):
-		for i in range(entries.count() - max_entries): 
-			db.delete(entries.get())
+    ## If there are more than the max number of entries, flush the
+    ## earliest entries.
+    entries = db.GqlQuery("SELECT * FROM StoredData ORDER BY date")
+    if (entries.count() > max_entries):
+        for i in range(entries.count() - max_entries): 
+            db.delete(entries.get())
 
 from htmlentitydefs import name2codepoint 
 def replace_entities(match):
@@ -179,36 +194,36 @@ def html_unescape(data):
     return entity_re.sub(replace_entities, data)
     
 def ProcessNode(node, sPath):
-	entries = []
-	if node.nodeType == minidom.Node.ELEMENT_NODE:
-		value = ""
-		for childNode in node.childNodes:
-			if (childNode.nodeType == minidom.Node.TEXT_NODE) or (childNode.nodeType == minidom.Node.CDATA_SECTION_NODE):
-				value += childNode.nodeValue
+    entries = []
+    if node.nodeType == minidom.Node.ELEMENT_NODE:
+        value = ""
+        for childNode in node.childNodes:
+            if (childNode.nodeType == minidom.Node.TEXT_NODE) or (childNode.nodeType == minidom.Node.CDATA_SECTION_NODE):
+                value += childNode.nodeValue
 
-		value = value.strip()
-		value = html_unescape(value)
-		if len(value) > 0:
-			entries.append(StoredData(tag = sPath, value = value))
-		for attr in node.attributes.values():
-			if len(attr.value.strip()) > 0:
-				entries.append(StoredData(tag = sPath + ">" + attr.name, value = attr.value))
-		
-		childCounts = {}
-		for childNode in node.childNodes:
-			if childNode.nodeType == minidom.Node.ELEMENT_NODE:
-				sTag = childNode.tagName
-				try:
-					childCounts[sTag] = childCounts[sTag] + 1
-				except:
-					childCounts[sTag] = 1
-				if (childCounts[sTag] <= 5):
-					entries.extend(ProcessNode(childNode, sPath + ">" + sTag + str(childCounts[sTag])))
-		return entries
-		
+        value = value.strip()
+        value = html_unescape(value)
+        if len(value) > 0:
+            entries.append(StoredData(tag = sPath, value = value))
+        for attr in node.attributes.values():
+            if len(attr.value.strip()) > 0:
+                entries.append(StoredData(tag = sPath + ">" + attr.name, value = attr.value))
+        
+        childCounts = {}
+        for childNode in node.childNodes:
+            if childNode.nodeType == minidom.Node.ELEMENT_NODE:
+                sTag = childNode.tagName
+                try:
+                    childCounts[sTag] = childCounts[sTag] + 1
+                except:
+                    childCounts[sTag] = 1
+                if (childCounts[sTag] <= 5):
+                    entries.extend(ProcessNode(childNode, sPath + ">" + sTag + str(childCounts[sTag])))
+        return entries
+        
 def DeleteUrl(sUrl):
-	entries = StoredData.all().filter('tag >=', sUrl).filter('tag <', sUrl + u'\ufffd')
-	db.delete(entries[:500])
+    entries = StoredData.all().filter('tag >=', sUrl).filter('tag <', sUrl + u'\ufffd')
+    db.delete(entries[:500])
   
 
 ### Assign the classes to the URL's
@@ -216,10 +231,10 @@ def DeleteUrl(sUrl):
 application =     \
    webapp.WSGIApplication([('/', MainPage),
                            ('/getvalue', GetValueHandler),
-			   ('/storeavalue', StoreAValue),
-			   ('/layar', Layar),
-			   ('/layar2', Layar2),
-		           ('/deleteentry', DeleteEntry)
+               ('/storeavalue', StoreAValue),
+               ('/layar', Layar),
+               ('/layar2', Layar2),
+                   ('/deleteentry', DeleteEntry)
 
                            ],
                           debug=True)
